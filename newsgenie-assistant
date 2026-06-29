@@ -1,0 +1,47 @@
+import os
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain_community.tools import DuckDuckGoSearchRun
+from requests import get
+
+load_dotenv()
+
+# --- Configuration ---
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+MODEL_NAME = "gpt-4o-mini"
+
+# Initialize LLM
+llm = ChatOpenAI(model=MODEL_NAME, temperature=0)
+search_tool = DuckDuckGoSearchRun()
+
+def fetch_news(category):
+    \"\"\"
+    Fetches real-time news from NewsAPI.org based on a category.
+    \"\"\"
+    if not NEWS_API_KEY:
+        return "News API key not configured. Please add it to the .env file."
+    
+    url = f"https://newsapi.org/v2/top-headlines?category={category}&language=en&apiKey={NEWS_API_KEY}"
+    try:
+        response = get(url)
+        data = response.json()
+        if data["status"] == "ok":
+            articles = data["articles"][:5] # Get top 5 articles
+            news_summary = []
+            for art in articles:
+                news_summary.append(f"- {art['title']}: {art['url']}")
+            return "\n".join(news_summary)
+        else:
+            return f"Error from News API: {data.get('message', 'Unknown error')}"
+    except Exception as e:
+        return f"Failed to fetch news: {str(e)}"
+
+def web_search(query):
+    \"\"\"
+    Performs a general web search for current information.
+    \"\"\"
+    try:
+        return search_tool.run(query)
+    except Exception as e:
+        return f"Search failed: {str(e)}"
